@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to ProductStore</title>
+  <style>
+    body { background-color: #f4f7fb; color: #333; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+    .email-container { max-width: 600px; margin: 0 auto; padding: 24px; }
+    .card { background: #ffffff; border-radius: 16px; box-shadow: 0 16px 40px rgba(16, 24, 40, 0.08); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #4f46e5 0%, #2563eb 100%); color: #fff; padding: 32px 24px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; }
+    .header p { margin: 12px 0 0; font-size: 16px; opacity: 0.92; }
+    .content { padding: 28px 24px 24px; }
+    .section-title { color: #111827; font-size: 18px; margin-bottom: 12px; }
+    .details { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    .details td { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; }
+    .details td.label { width: 35%; color: #6b7280; font-weight: 600; }
+    .details td.value { color: #111827; }
+    .button-wrap { text-align: center; margin: 30px 0 16px; }
+    .button { display: inline-block; text-decoration: none; background: #2563eb; color: #fff; padding: 12px 24px; border-radius: 999px; font-weight: 600; }
+    .footer { font-size: 13px; color: #6b7280; text-align: center; padding: 0 24px 24px; }
+    .footer a { color: #2563eb; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="card">
+      <div class="header">
+        <h1>Welcome to ProductStore!</h1>
+        <p>Your account has been created successfully.</p>
+      </div>
+      <div class="content">
+        <p>Hi {{ user.username }},</p>
+        <p>Thanks for joining ProductStore. Here are the details you provided during registration:</p>
+
+        <table class="details">
+          <tr>
+            <td class="label">Full Name</td>
+            <td class="value">{{ profile.name }}</td>
+          </tr>
+          <tr>
+            <td class="label">Username</td>
+            <td class="value">{{ user.username }}</td>
+          </tr>
+          <tr>
+            <td class="label">Email</td>
+            <td class="value">{{ user.email }}</td>
+          </tr>
+          <tr>
+            <td class="label">City</td>
+            <td class="value">{{ profile.city }}</td>
+          </tr>
+          <tr>
+            <td class="label">Mobile</td>
+            <td class="value">{{ profile.mobile_no }}</td>
+          </tr>
+        </table>
+
+        <div class="button-wrap">
+          <a class="button" href="{{ site_url }}" target="_blank">Visit ProductStore</a>
+        </div>
+
+        <p>If you ever need help, just reply to this message or contact us at <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+      </div>
+      <div class="footer">
+        <p>ProductStore · Keeping your inventory organized with confidence.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

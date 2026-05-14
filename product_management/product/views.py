@@ -4,7 +4,8 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail
+from django.template.loader import render_to_string
 from django.conf import settings
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -22,14 +23,27 @@ def signup(request):
             login(request, user)
 
             subject = 'Welcome to ProductStore'
-            message = (
-                f'Hello {user.username},\n\n'
-                'Thank you for registering at ProductStore.\n'
-                f'Your username: {user.username}\n'
-                f'Your email: {user.email}\n\n'
-                'We are happy to have you on board!'
+            profile = user.profile
+            context = {
+                'user': user,
+                'profile': profile,
+                'site_name': 'ProductStore',
+                'support_email': settings.DEFAULT_FROM_EMAIL,
+                'site_url': request.build_absolute_uri('/'),
+            }
+
+            text_body = render_to_string('registration/email/welcome_email.txt', context)
+            html_body = render_to_string('registration/email/welcome_email.html', context)
+
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[user.email]
             )
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+            email.attach_alternative(html_body, 'text/html')
+            email.send(fail_silently=False)
+
             messages.success(request, 'Registration successful. A welcome email has been sent!')
             return redirect('product_list')
     else:
