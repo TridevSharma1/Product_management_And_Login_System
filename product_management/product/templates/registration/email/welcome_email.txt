@@ -1,0 +1,20 @@
+Hello {{ user.username }},
+
+Thank you for registering at ProductStore.
+
+Here are the details you provided:
+
+Full Name: {{ profile.name }}
+Username: {{ user.username }}
+Email: {{ user.email }}
+City: {{ profile.city }}
+Mobile: {{ profile.mobile_no }}
+
+We are happy to have you on board.
+
+Visit us at {{ site_url }}
+
+If you need help, contact us at {{ support_email }}.
+
+Best regards,
+The ProductStore Team
