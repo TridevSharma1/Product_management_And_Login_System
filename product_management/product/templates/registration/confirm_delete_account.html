@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Confirm Delete Account | Inventry Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-danger text-white">
+                <h3 class="mb-0">Confirm Account Deletion</h3>
+            </div>
+            <div class="card-body">
+                <p>Hi <strong>{{ user.username }}</strong>, clicking the button below will permanently delete your account and all profile data.</p>
+                <p class="text-danger">This action cannot be undone.</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger w-100 rounded-pill">Confirm Delete My Account</button>
+                </form>
+                <a href="{% url 'profile' %}" class="btn btn-secondary w-100 rounded-pill mt-3">Keep My Account</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

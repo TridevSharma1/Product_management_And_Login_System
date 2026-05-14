@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-md-6">
+
+        <div class="card shadow border-danger">
+
+            <div class="card-header bg-danger text-white">
+                <h3>Delete Product</h3>
+            </div>
+
+            <div class="card-body text-center">
+
+                <h4>
+                    Are you sure you want to delete?
+                </h4>
+
+                <h3 class="text-danger mt-3">
+                    {{ product.name }}
+                </h3>
+
+                <img src="{{ product.image.url }}"
+                     width="200"
+                     class="img-fluid rounded mt-3">
+
+                <form method="POST" class="mt-4">
+
+                    {% csrf_token %}
+
+                    <button type="submit"
+                            class="btn btn-danger">
+                        Yes, Delete
+                    </button>
+
+                    <a href="{% url 'product_list' %}"
+                       class="btn btn-secondary">
+                        Cancel
+                    </a>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

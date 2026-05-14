@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}All Products | Inventry Management{% endblock %}
+
+{% block content %}
+
+<div class="hero-panel mb-5">
+    <div class="row align-items-center">
+        <div class="col-lg-8">
+            <h1 class="display-6 fw-bold">Your inventory, beautifully organized.</h1>
+            <p class="lead text-white-75 mt-3">
+                Browse product details, manage stock, and keep your inventory up to date from one elegant dashboard.
+            </p>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
+            {% if user.is_authenticated %}
+                <a href="{% url 'product_create' %}" class="btn btn-success btn-lg rounded-pill px-5">
+                    Add New Product
+                </a>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn btn-primary btn-lg rounded-pill px-5">
+                    Login to Manage
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="row gy-4">
+    {% for product in products %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100">
+                <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                <div class="card-body">
+                    <h5 class="card-title mb-1">{{ product.name }}</h5>
+                    <p class="text-primary fw-semibold fs-5 mb-2">₹ {{ product.price }}</p>
+                    <p class="text-muted mb-3">{{ product.description|truncatewords:18 }}</p>
+                    <div class="d-flex justify-content-between align-items-center text-secondary mb-3">
+                        <span><strong>Qty:</strong> {{ product.quantity }}</span>
+                        <span class="badge bg-light text-dark">{{ product.created_at|date:'d M Y' }}</span>
+                    </div>
+                    <a href="{% url 'product_detail' product.id %}" class="btn btn-primary w-100 rounded-pill">
+                        View Details
+                    </a>
+                </div>
+                <div class="card-footer bg-white border-0 d-flex gap-2 flex-wrap">
+                    {% if user.is_authenticated %}
+                        <a href="{% url 'product_update' product.id %}" class="btn btn-outline-warning flex-grow-1 rounded-pill">Edit</a>
+                        <a href="{% url 'product_delete' product.id %}" class="btn btn-outline-danger flex-grow-1 rounded-pill">Delete</a>
+                    {% else %}
+                        <button class="btn btn-outline-warning flex-grow-1 rounded-pill" disabled>Edit</button>
+                        <button class="btn btn-outline-danger flex-grow-1 rounded-pill" disabled>Delete</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                No products available yet. Add your first item to get started.
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% endblock %}

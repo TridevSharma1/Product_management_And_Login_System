@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Profile | Inventry Management{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">My Profile</h3>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4 text-secondary">Username</div>
+                    <div class="col-md-8">{{ user.username }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 text-secondary">Email</div>
+                    <div class="col-md-8">{{ user.email }}</div>
+                </div>
+                <hr>
+                {% if profile %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 text-secondary">Full Name</div>
+                        <div class="col-md-8">{{ profile.name }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 text-secondary">City</div>
+                        <div class="col-md-8">{{ profile.city }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 text-secondary">Mobile Number</div>
+                        <div class="col-md-8">{{ profile.mobile_no }}</div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4 text-secondary">Member Since</div>
+                        <div class="col-md-8">{{ profile.created_at|date:"d M, Y" }}</div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        No profile information available. Your profile will be created when you register.
+                    </div>
+                {% endif %}
+                <hr>
+                <div class="d-grid gap-2 mb-3">
+                    <a href="{% url 'product_list' %}" class="btn btn-secondary rounded-pill">Back to Products</a>
+                </div>
+                <form method="post" action="{% url 'delete_account_request' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger w-100 rounded-pill">Delete My Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
