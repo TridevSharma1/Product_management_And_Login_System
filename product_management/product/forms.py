@@ -90,11 +90,29 @@ class LoginForm(forms.Form):
         email = cleaned_data.get('email')
 
         if username and password and email:
-            from django.contrib.auth import authenticate
-            user = authenticate(username=username, password=password)
-            if user is None:
-                raise forms.ValidationError('Invalid username or password.')
+            try:
+                user = User.objects.get(username=username)
+            except User.DoesNotExist:
+                raise forms.ValidationError('Invalid username, email, or password.')
+
+            if not user.check_password(password):
+                raise forms.ValidationError('Invalid username, email, or password.')
+
             if user.email.lower() != email.lower():
-                raise forms.ValidationError('The email does not match this user.')
+                raise forms.ValidationError('Invalid username, email, or password.')
+
             cleaned_data['user'] = user
         return cleaned_data
+
+
+class OTPVerificationForm(forms.Form):
+    code = forms.CharField(
+        max_length=6,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter verification code'})
+    )
+
+    def clean_code(self):
+        code = self.cleaned_data.get('code', '').strip()
+        if not code.isdigit() or len(code) != 6:
+            raise forms.ValidationError('Enter a valid 6-digit verification code.')
+        return code

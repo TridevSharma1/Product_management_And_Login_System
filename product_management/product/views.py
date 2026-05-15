@@ -1,6 +1,9 @@
+from datetime import timedelta
+import random
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib import messages
@@ -10,8 +13,83 @@ from django.conf import settings
 from django.urls import reverse
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from .models import Product, UserProfile
-from .forms import ProductForm, RegisterForm, LoginForm
+from django.utils import timezone
+from .models import Product, UserProfile, OTPCode
+from .forms import ProductForm, RegisterForm, LoginForm, OTPVerificationForm
+
+
+OTP_RESEND_DELAY_SECONDS = 60
+OTP_RESEND_LIMIT = 5
+OTP_RESEND_WINDOW_MINUTES = 60
+
+
+def generate_otp_code(length=6):
+    return ''.join(random.choices('0123456789', k=length))
+
+
+def get_resend_delay(request):
+    last_sent = request.session.get('otp_last_sent')
+    if last_sent is None:
+        return 0
+    last_sent_dt = timezone.datetime.fromisoformat(last_sent)
+    if timezone.is_naive(last_sent_dt):
+        last_sent_dt = timezone.make_aware(last_sent_dt, timezone.get_current_timezone())
+    elapsed = (timezone.now() - last_sent_dt).total_seconds()
+    return max(0, OTP_RESEND_DELAY_SECONDS - int(elapsed))
+
+
+def record_otp_sent(request):
+    request.session['otp_last_sent'] = timezone.now().isoformat()
+    request.session.modified = True
+
+
+def send_otp_email(user, code, purpose, request):
+    title = 'Verify your account' if purpose == OTPCode.PURPOSE_REGISTER else 'Your login verification code'
+    subject = 'Complete your registration' if purpose == OTPCode.PURPOSE_REGISTER else 'Login verification code'
+    context = {
+        'user': user,
+        'code': code,
+        'purpose': title,
+        'support_email': settings.DEFAULT_FROM_EMAIL,
+        'site_url': request.build_absolute_uri('/'),
+    }
+    text_body = render_to_string('registration/email/otp_email.txt', context)
+    html_body = render_to_string('registration/email/otp_email.html', context)
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email]
+    )
+    email.attach_alternative(html_body, 'text/html')
+    try:
+        email.send(fail_silently=False)
+        return True
+    except Exception as e:
+        messages.error(request, 'Unable to send OTP email. Please check your email settings or try again later.')
+        return False
+
+
+def send_welcome_email(user, request):
+    subject = 'Welcome to ProductStore'
+    profile = getattr(user, 'profile', None)
+    context = {
+        'user': user,
+        'profile': profile,
+        'site_name': 'ProductStore',
+        'support_email': settings.DEFAULT_FROM_EMAIL,
+        'site_url': request.build_absolute_uri('/'),
+    }
+    text_body = render_to_string('registration/email/welcome_email.txt', context)
+    html_body = render_to_string('registration/email/welcome_email.html', context)
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[user.email]
+    )
+    email.attach_alternative(html_body, 'text/html')
+    email.send(fail_silently=False)
 
 
 # Signup View
@@ -19,33 +97,27 @@ def signup(request):
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            login(request, user)
+            user = form.save(commit=False)
+            user.is_active = False
+            user.save()
 
-            subject = 'Welcome to ProductStore'
-            profile = user.profile
-            context = {
-                'user': user,
-                'profile': profile,
-                'site_name': 'ProductStore',
-                'support_email': settings.DEFAULT_FROM_EMAIL,
-                'site_url': request.build_absolute_uri('/'),
-            }
-
-            text_body = render_to_string('registration/email/welcome_email.txt', context)
-            html_body = render_to_string('registration/email/welcome_email.html', context)
-
-            email = EmailMultiAlternatives(
-                subject=subject,
-                body=text_body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[user.email]
+            UserProfile.objects.create(
+                user=user,
+                name=form.cleaned_data['name'],
+                city=form.cleaned_data['city'],
+                mobile_no=form.cleaned_data['mobile_no']
             )
-            email.attach_alternative(html_body, 'text/html')
-            email.send(fail_silently=False)
 
-            messages.success(request, 'Registration successful. A welcome email has been sent!')
-            return redirect('product_list')
+            code = generate_otp_code()
+            if send_otp_email(user, code, OTPCode.PURPOSE_REGISTER, request):
+                OTPCode.objects.create(user=user, code=code, purpose=OTPCode.PURPOSE_REGISTER)
+                record_otp_sent(request)
+                request.session['otp_user_id'] = user.pk
+                request.session['otp_purpose'] = OTPCode.PURPOSE_REGISTER
+                messages.success(request, 'Registration successful. Enter the 6-digit code sent to your email to verify your account.')
+                return redirect('verify_otp')
+            messages.error(request, 'Registration succeeded, but the verification code could not be sent. Please try logging in again later.')
+            return redirect('signup')
     else:
         form = RegisterForm()
     return render(request, 'registration/signup.html', {'form': form})
@@ -58,27 +130,16 @@ def login_view(request):
         if form.is_valid():
             user = form.cleaned_data.get('user')
             if user:
-                login(request, user)
-                
-                try:
-                    subject = 'Welcome Back!'
-                    message = (
-                        f'Hello {user.username},\n\n'
-                        'Welcome back, you logged in successfully!\n\n'
-                        'Thank you for using ProductStore!'
-                    )
-                    send_mail(
-                        subject, 
-                        message, 
-                        settings.DEFAULT_FROM_EMAIL, 
-                        [user.email], 
-                        fail_silently=False
-                    )
-                    messages.success(request, 'Login successful. A confirmation email has been sent!')
-                except Exception as e:
-                    messages.warning(request, f'Login successful but email could not be sent: {str(e)}')
-                
-                return redirect('product_list')
+                code = generate_otp_code()
+                if send_otp_email(user, code, OTPCode.PURPOSE_LOGIN, request):
+                    OTPCode.objects.create(user=user, code=code, purpose=OTPCode.PURPOSE_LOGIN)
+                    record_otp_sent(request)
+                    request.session['otp_user_id'] = user.pk
+                    request.session['otp_purpose'] = OTPCode.PURPOSE_LOGIN
+                    messages.success(request, 'A verification code has been sent to your email. Enter it to complete login.')
+                    return redirect('verify_otp')
+                messages.error(request, 'Unable to send verification email. Please try again later.')
+                return redirect('login')
         else:
             # Display form errors
             for field, errors in form.errors.items():
@@ -87,6 +148,96 @@ def login_view(request):
     else:
         form = LoginForm()
     return render(request, 'registration/login.html', {'form': form})
+
+
+def verify_otp(request):
+    otp_user_id = request.session.get('otp_user_id')
+    otp_purpose = request.session.get('otp_purpose')
+    if not otp_user_id or not otp_purpose:
+        messages.error(request, 'No verification request found. Please login or sign up again.')
+        return redirect('login')
+
+    try:
+        user = User.objects.get(pk=otp_user_id)
+    except User.DoesNotExist:
+        messages.error(request, 'Verification request is invalid. Please try again.')
+        return redirect('login')
+
+    if request.method == 'POST':
+        form = OTPVerificationForm(request.POST)
+        if form.is_valid():
+            code = form.cleaned_data['code']
+            otp = OTPCode.objects.filter(
+                user=user,
+                purpose=otp_purpose,
+                code=code,
+                used=False
+            ).order_by('-created_at').first()
+
+            if otp is None or otp.is_expired():
+                form.add_error('code', 'The verification code is invalid or has expired.')
+            else:
+                otp.mark_used()
+                if otp_purpose == OTPCode.PURPOSE_REGISTER:
+                    user.is_active = True
+                    user.save()
+                    try:
+                        send_welcome_email(user, request)
+                    except Exception:
+                        pass
+                    login(request, user)
+                    messages.success(request, 'Your account is verified and you are now logged in.')
+                    return redirect('product_list')
+
+                login(request, user)
+                messages.success(request, 'Login successful. You are now logged in.')
+                return redirect('product_list')
+    else:
+        form = OTPVerificationForm()
+
+    resend_wait_seconds = get_resend_delay(request)
+    return render(request, 'registration/verify_otp.html', {
+        'form': form,
+        'email': user.email,
+        'purpose': otp_purpose,
+        'resend_wait_seconds': resend_wait_seconds,
+    })
+
+
+def resend_otp(request):
+    otp_user_id = request.session.get('otp_user_id')
+    otp_purpose = request.session.get('otp_purpose')
+    if not otp_user_id or not otp_purpose:
+        messages.error(request, 'No verification request found. Please login or sign up again.')
+        return redirect('login')
+
+    try:
+        user = User.objects.get(pk=otp_user_id)
+    except User.DoesNotExist:
+        messages.error(request, 'Verification request is invalid. Please try again.')
+        return redirect('login')
+
+    wait_seconds = get_resend_delay(request)
+    if wait_seconds > 0:
+        messages.error(request, f'Please wait {wait_seconds} seconds before requesting a new code.')
+        return redirect('verify_otp')
+
+    one_hour_ago = timezone.now() - timedelta(minutes=OTP_RESEND_WINDOW_MINUTES)
+    recent_count = OTPCode.objects.filter(
+        user=user,
+        purpose=otp_purpose,
+        created_at__gte=one_hour_ago
+    ).count()
+    if recent_count >= OTP_RESEND_LIMIT:
+        messages.error(request, 'You have reached the maximum number of resend attempts. Please try again later.')
+        return redirect('verify_otp')
+
+    code = generate_otp_code()
+    OTPCode.objects.create(user=user, code=code, purpose=otp_purpose)
+    send_otp_email(user, code, otp_purpose, request)
+    record_otp_sent(request)
+    messages.success(request, 'A new verification code has been sent to your email.')
+    return redirect('verify_otp')
 
 
 # Logout View

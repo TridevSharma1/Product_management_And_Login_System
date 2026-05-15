@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Account | Inventry Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h3 class="mb-0">Verification Code</h3>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">A 6-digit verification code was sent to <strong>{{ email }}</strong>.</p>
+                {% if purpose == 'register' %}
+                    <p class="text-secondary">Enter this code to complete account registration.</p>
+                {% else %}
+                    <p class="text-secondary">Enter this code to complete login.</p>
+                {% endif %}
+                <form method="POST">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        {{ form.code.label_tag }}
+                        {{ form.code }}
+                        {{ form.code.errors }}
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 rounded-pill">Verify Code</button>
+                </form>
+                <div class="mt-3 text-center">
+                    <p id="resend-timer" class="mb-2 text-muted"></p>
+                    <form method="POST" action="{% url 'resend_otp' %}">
+                        {% csrf_token %}
+                        <button type="submit" id="resend-button" class="btn btn-link p-0">Resend code</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if resend_wait_seconds and resend_wait_seconds > 0 %}
+<script>
+    const resendButton = document.getElementById('resend-button');
+    const timerText = document.getElementById('resend-timer');
+    let seconds = {{ resend_wait_seconds }};
+
+    function updateTimer() {
+        if (seconds > 0) {
+            resendButton.disabled = true;
+            timerText.textContent = `Please wait ${seconds} second${seconds === 1 ? '' : 's'} before resending.`;
+            seconds -= 1;
+        } else {
+            resendButton.disabled = false;
+            timerText.textContent = 'You can resend the code now.';
+            clearInterval(timerInterval);
+        }
+    }
+
+    updateTimer();
+    const timerInterval = setInterval(updateTimer, 1000);
+</script>
+{% endif %}
+{% endblock %}

@@ -1,5 +1,8 @@
+from datetime import timedelta
+
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -11,6 +14,31 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f'{self.user.username} - {self.name}'
+
+
+class OTPCode(models.Model):
+    PURPOSE_REGISTER = 'register'
+    PURPOSE_LOGIN = 'login'
+    PURPOSE_CHOICES = [
+        (PURPOSE_REGISTER, 'Register'),
+        (PURPOSE_LOGIN, 'Login'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otp_codes')
+    code = models.CharField(max_length=6)
+    purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f'{self.user.username} - {self.purpose} - {self.code}'
+
+    def is_expired(self):
+        return self.created_at + timedelta(minutes=10) < timezone.now()
+
+    def mark_used(self):
+        self.used = True
+        self.save()
 
 
 class Product(models.Model):

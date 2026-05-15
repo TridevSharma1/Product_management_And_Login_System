@@ -1,0 +1,9 @@
+Hello {{ user.username }},
+
+Your {{ purpose }} code is:
+
+{{ code }}
+
+Enter this code in the verification form to complete the process.
+
+If you did not request this, please contact support at {{ support_email }}.
